@@ -16,8 +16,10 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState(null);
   const [touchDragIndex, setTouchDragIndex] = useState(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState(null);
   const [justDroppedId, setJustDroppedId] = useState(null);
   const draggedIdRef = useRef(null);
+  const dragStartIndexRef = useRef(null);
   const listRef = useRef(null);
 
   // Reset when chapter changes
@@ -27,9 +29,34 @@ function DragDropGame({ chapter, onBack, onComplete }) {
     setResults(null);
   }, [chapter]);
 
-  // --- Desktop Drag and Drop (live reorder) ---
+  // --- Reorder on drop ---
+  const reorderItems = useCallback((fromIndex, toIndex) => {
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+    setItems((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+
+  const finishDrag = useCallback(() => {
+    reorderItems(dragStartIndexRef.current, dropTargetIndex);
+    setDragIndex(null);
+    setDropTargetIndex(null);
+    if (draggedIdRef.current) {
+      setJustDroppedId(draggedIdRef.current);
+      draggedIdRef.current = null;
+      setTimeout(() => setJustDroppedId(null), 400);
+    }
+    dragStartIndexRef.current = null;
+  }, [dropTargetIndex, reorderItems]);
+
+  // --- Desktop Drag and Drop ---
   const handleDragStart = useCallback((e, index) => {
     setDragIndex(index);
+    setDropTargetIndex(index);
+    dragStartIndexRef.current = index;
     draggedIdRef.current = e.target.dataset.itemId;
     e.dataTransfer.effectAllowed = "move";
   }, []);
@@ -37,40 +64,26 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const handleDragOver = useCallback(
     (e, index) => {
       e.preventDefault();
-      if (dragIndex === null || dragIndex === index) return;
-      setItems((prev) => {
-        const next = [...prev];
-        const [moved] = next.splice(dragIndex, 1);
-        next.splice(index, 0, moved);
-        return next;
-      });
-      setDragIndex(index);
+      if (dragIndex === null) return;
+      setDropTargetIndex(index);
     },
     [dragIndex]
   );
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
-    setDragIndex(null);
-    if (draggedIdRef.current) {
-      setJustDroppedId(draggedIdRef.current);
-      draggedIdRef.current = null;
-      setTimeout(() => setJustDroppedId(null), 400);
-    }
-  }, []);
+    finishDrag();
+  }, [finishDrag]);
 
   const handleDragEnd = useCallback(() => {
-    setDragIndex(null);
-    if (draggedIdRef.current) {
-      setJustDroppedId(draggedIdRef.current);
-      draggedIdRef.current = null;
-      setTimeout(() => setJustDroppedId(null), 400);
-    }
-  }, []);
+    finishDrag();
+  }, [finishDrag]);
 
-  // --- Touch Drag and Drop (live reorder) ---
+  // --- Touch Drag and Drop ---
   const handleTouchStart = useCallback((e, index) => {
     setTouchDragIndex(index);
+    setDropTargetIndex(index);
+    dragStartIndexRef.current = index;
     const el = e.target.closest('.event-item');
     if (el) draggedIdRef.current = el.dataset.itemId;
   }, []);
@@ -85,15 +98,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
       for (let i = 0; i < elements.length; i++) {
         const rect = elements[i].getBoundingClientRect();
         if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-          if (i !== touchDragIndex) {
-            setItems((prev) => {
-              const next = [...prev];
-              const [moved] = next.splice(touchDragIndex, 1);
-              next.splice(i, 0, moved);
-              return next;
-            });
-            setTouchDragIndex(i);
-          }
+          setDropTargetIndex(i);
           break;
         }
       }
@@ -102,13 +107,16 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   );
 
   const handleTouchEnd = useCallback(() => {
+    reorderItems(dragStartIndexRef.current, dropTargetIndex);
     setTouchDragIndex(null);
+    setDropTargetIndex(null);
     if (draggedIdRef.current) {
       setJustDroppedId(draggedIdRef.current);
       draggedIdRef.current = null;
       setTimeout(() => setJustDroppedId(null), 400);
     }
-  }, []);
+    dragStartIndexRef.current = null;
+  }, [dropTargetIndex, reorderItems]);
 
   // --- Submit / Check ---
   const handleSubmit = () => {
@@ -188,6 +196,8 @@ function DragDropGame({ chapter, onBack, onComplete }) {
           const isWrong = submitted && item.order !== index + 1;
           const isDragging = dragIndex === index || touchDragIndex === index;
           const isJustDropped = justDroppedId === item.id;
+          const isActive = dragIndex !== null || touchDragIndex !== null;
+          const isDropTarget = isActive && !isDragging && dropTargetIndex === index;
 
           return (
             <li
@@ -197,6 +207,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
                 "event-item",
                 isDragging ? "dragging" : "",
                 isJustDropped ? "just-dropped" : "",
+                isDropTarget ? "drop-target" : "",
                 isCorrect ? "correct" : "",
                 isWrong ? "wrong" : "",
               ]

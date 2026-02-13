@@ -93,6 +93,12 @@
   z-index: 10;
 }
 
+.event-item.drop-target {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
 @keyframes settle {
   0% {
     transform: scale(1.12);
