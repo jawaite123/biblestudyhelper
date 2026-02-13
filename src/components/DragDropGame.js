@@ -13,7 +13,6 @@ function shuffleArray(arr) {
 function DragDropGame({ chapter, onBack, onComplete }) {
   const [items, setItems] = useState(() => shuffleArray(chapter.events));
   const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState(null);
   const [touchDragIndex, setTouchDragIndex] = useState(null);
@@ -26,48 +25,44 @@ function DragDropGame({ chapter, onBack, onComplete }) {
     setResults(null);
   }, [chapter]);
 
-  // --- Desktop Drag and Drop ---
+  // --- Desktop Drag and Drop (live reorder) ---
   const handleDragStart = useCallback((e, index) => {
     setDragIndex(index);
     e.dataTransfer.effectAllowed = "move";
+    // Make the default browser ghost semi-transparent
+    if (e.target) {
+      requestAnimationFrame(() => {
+        e.target.style.opacity = "0.5";
+      });
+    }
   }, []);
 
   const handleDragOver = useCallback(
     (e, index) => {
       e.preventDefault();
-      if (index !== overIndex) {
-        setOverIndex(index);
-      }
-    },
-    [overIndex]
-  );
-
-  const handleDrop = useCallback(
-    (e, dropIndex) => {
-      e.preventDefault();
-      if (dragIndex === null || dragIndex === dropIndex) {
-        setDragIndex(null);
-        setOverIndex(null);
-        return;
-      }
+      if (dragIndex === null || dragIndex === index) return;
       setItems((prev) => {
         const next = [...prev];
         const [moved] = next.splice(dragIndex, 1);
-        next.splice(dropIndex, 0, moved);
+        next.splice(index, 0, moved);
         return next;
       });
-      setDragIndex(null);
-      setOverIndex(null);
+      setDragIndex(index);
     },
     [dragIndex]
   );
 
-  const handleDragEnd = useCallback(() => {
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
     setDragIndex(null);
-    setOverIndex(null);
   }, []);
 
-  // --- Touch Drag and Drop ---
+  const handleDragEnd = useCallback((e) => {
+    if (e.target) e.target.style.opacity = "";
+    setDragIndex(null);
+  }, []);
+
+  // --- Touch Drag and Drop (live reorder) ---
   const handleTouchStart = useCallback((e, index) => {
     setTouchDragIndex(index);
   }, []);
@@ -82,26 +77,25 @@ function DragDropGame({ chapter, onBack, onComplete }) {
       for (let i = 0; i < elements.length; i++) {
         const rect = elements[i].getBoundingClientRect();
         if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-          if (i !== overIndex) setOverIndex(i);
+          if (i !== touchDragIndex) {
+            setItems((prev) => {
+              const next = [...prev];
+              const [moved] = next.splice(touchDragIndex, 1);
+              next.splice(i, 0, moved);
+              return next;
+            });
+            setTouchDragIndex(i);
+          }
           break;
         }
       }
     },
-    [touchDragIndex, overIndex]
+    [touchDragIndex]
   );
 
   const handleTouchEnd = useCallback(() => {
-    if (touchDragIndex !== null && overIndex !== null && touchDragIndex !== overIndex) {
-      setItems((prev) => {
-        const next = [...prev];
-        const [moved] = next.splice(touchDragIndex, 1);
-        next.splice(overIndex, 0, moved);
-        return next;
-      });
-    }
     setTouchDragIndex(null);
-    setOverIndex(null);
-  }, [touchDragIndex, overIndex]);
+  }, []);
 
   // --- Submit / Check ---
   const handleSubmit = () => {
@@ -180,7 +174,6 @@ function DragDropGame({ chapter, onBack, onComplete }) {
           const isCorrect = submitted && item.order === index + 1;
           const isWrong = submitted && item.order !== index + 1;
           const isDragging = dragIndex === index || touchDragIndex === index;
-          const isOver = overIndex === index;
 
           return (
             <li
@@ -188,7 +181,6 @@ function DragDropGame({ chapter, onBack, onComplete }) {
               className={[
                 "event-item",
                 isDragging ? "dragging" : "",
-                isOver ? "drag-over" : "",
                 isCorrect ? "correct" : "",
                 isWrong ? "wrong" : "",
               ]
@@ -197,7 +189,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
               draggable={!submitted}
               onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={(e) => handleDrop(e, index)}
+              onDrop={handleDrop}
               onDragEnd={handleDragEnd}
               onTouchStart={(e) => !submitted && handleTouchStart(e, index)}
             >

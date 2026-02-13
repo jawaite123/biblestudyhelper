@@ -66,22 +66,29 @@
   border-radius: 10px;
   cursor: grab;
   user-select: none;
-  transition: all 0.15s;
+  transition: transform 0.25s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.25s cubic-bezier(0.2, 0, 0, 1),
+              opacity 0.2s ease,
+              border-color 0.2s ease,
+              background 0.2s ease;
   touch-action: none;
+  position: relative;
 }
 
 .event-item:active {
   cursor: grabbing;
 }
 
-.event-item.dragging {
-  opacity: 0.45;
-  transform: scale(0.97);
+.event-item:hover:not(.dragging):not(.correct):not(.wrong) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
-.event-item.drag-over {
+.event-item.dragging {
+  opacity: 0.55;
+  transform: scale(1.03);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-light);
+  z-index: 10;
 }
 
 .event-item.correct {
