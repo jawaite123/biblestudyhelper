@@ -1,0 +1,45 @@
+/* --- CSS Variables --- */
+:root {
+  --accent: #4a6fa5;
+  --accent-dark: #3a5a8a;
+  --accent-light: #e8eff8;
+  --surface: #ffffff;
+  --bg: #f5f7fa;
+  --text-primary: #1a1a2e;
+  --text-secondary: #6b7280;
+  --border: #e2e6eb;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --error: #dc2626;
+  --error-bg: #fef2f2;
+}
+
+/* --- App Shell --- */
+.App {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.app-header {
+  background: var(--accent);
+  padding: 0.85rem 1rem;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-logo {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+main {
+  padding-bottom: 2rem;
+}
