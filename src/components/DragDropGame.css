@@ -87,13 +87,29 @@
 }
 
 .event-item.dragging {
-  opacity: 0.65;
-  transform: scale(1.12) rotate(3deg);
-  box-shadow: 0 20px 50px rgba(79, 70, 229, 0.3),
-              0 8px 16px rgba(79, 70, 229, 0.15);
+  opacity: 0.35;
+  border-style: dashed;
   border-color: var(--accent);
   background: var(--accent-light);
-  z-index: 10;
+  cursor: grabbing;
+}
+
+/* Floating ghost that follows the pointer freely */
+.drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(79, 70, 229, 0.3),
+              0 8px 16px rgba(79, 70, 229, 0.15);
+  transform: rotate(2deg) scale(1.03);
+  will-change: left, top;
 }
 
 .event-item.drop-target {
@@ -104,17 +120,12 @@
 
 @keyframes settle {
   0% {
-    transform: scale(1.12);
-    box-shadow: 0 20px 50px rgba(79, 70, 229, 0.3),
-                0 8px 16px rgba(79, 70, 229, 0.15);
+    transform: scale(1.04);
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.2);
   }
-  40% {
-    transform: scale(0.95);
+  50% {
+    transform: scale(0.97);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-  70% {
-    transform: scale(1.02);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   }
   100% {
     transform: scale(1);

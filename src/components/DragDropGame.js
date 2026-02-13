@@ -12,15 +12,16 @@ function shuffleArray(arr) {
 
 function DragDropGame({ chapter, onBack, onComplete }) {
   const [items, setItems] = useState(() => shuffleArray(chapter.events));
-  const [dragIndex, setDragIndex] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState(null);
-  const [touchDragIndex, setTouchDragIndex] = useState(null);
+  const [activeDrag, setActiveDrag] = useState(null);
   const [dropTargetIndex, setDropTargetIndex] = useState(null);
   const [justDroppedId, setJustDroppedId] = useState(null);
-  const draggedIdRef = useRef(null);
-  const dragStartIndexRef = useRef(null);
   const listRef = useRef(null);
+  const ghostRef = useRef(null);
+  const dragDataRef = useRef(null);
+  const dropTargetRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
   // Reset when chapter changes
   useEffect(() => {
@@ -29,94 +30,96 @@ function DragDropGame({ chapter, onBack, onComplete }) {
     setResults(null);
   }, [chapter]);
 
-  // --- Reorder on drop ---
-  const reorderItems = useCallback((fromIndex, toIndex) => {
-    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
-    setItems((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
-      return next;
-    });
-  }, []);
-
-  const finishDrag = useCallback(() => {
-    reorderItems(dragStartIndexRef.current, dropTargetIndex);
-    setDragIndex(null);
-    setDropTargetIndex(null);
-    if (draggedIdRef.current) {
-      setJustDroppedId(draggedIdRef.current);
-      draggedIdRef.current = null;
-      setTimeout(() => setJustDroppedId(null), 400);
-    }
-    dragStartIndexRef.current = null;
-  }, [dropTargetIndex, reorderItems]);
-
-  // --- Desktop Drag and Drop ---
-  const handleDragStart = useCallback((e, index) => {
-    setDragIndex(index);
-    setDropTargetIndex(index);
-    dragStartIndexRef.current = index;
-    draggedIdRef.current = e.target.dataset.itemId;
-    e.dataTransfer.effectAllowed = "move";
-  }, []);
-
-  const handleDragOver = useCallback(
+  const handlePointerDown = useCallback(
     (e, index) => {
+      if (submitted || isDraggingRef.current) return;
       e.preventDefault();
-      if (dragIndex === null) return;
+      isDraggingRef.current = true;
+
+      const el = e.currentTarget;
+      const rect = el.getBoundingClientRect();
+
+      dragDataRef.current = {
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+        startIndex: index,
+      };
+      dropTargetRef.current = index;
+
+      setActiveDrag({
+        index,
+        id: el.dataset.itemId,
+        text: items[index].text,
+        width: rect.width,
+        initialX: rect.left,
+        initialY: rect.top,
+      });
       setDropTargetIndex(index);
     },
-    [dragIndex]
+    [submitted, items]
   );
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    finishDrag();
-  }, [finishDrag]);
+  // Attach document-level pointer listeners while dragging
+  useEffect(() => {
+    if (!activeDrag) return;
 
-  const handleDragEnd = useCallback(() => {
-    finishDrag();
-  }, [finishDrag]);
+    const handleMove = (e) => {
+      e.preventDefault();
+      if (ghostRef.current && dragDataRef.current) {
+        ghostRef.current.style.left = `${e.clientX - dragDataRef.current.offsetX}px`;
+        ghostRef.current.style.top = `${e.clientY - dragDataRef.current.offsetY}px`;
+      }
 
-  // --- Touch Drag and Drop ---
-  const handleTouchStart = useCallback((e, index) => {
-    setTouchDragIndex(index);
-    setDropTargetIndex(index);
-    dragStartIndexRef.current = index;
-    const el = e.target.closest('.event-item');
-    if (el) draggedIdRef.current = el.dataset.itemId;
-  }, []);
-
-  const handleTouchMove = useCallback(
-    (e) => {
-      if (touchDragIndex === null) return;
-      const touch = e.touches[0];
+      // Determine drop target by checking midpoints of list children
       const elements = listRef.current?.children;
       if (!elements) return;
 
+      let targetIdx = elements.length - 1;
       for (let i = 0; i < elements.length; i++) {
         const rect = elements[i].getBoundingClientRect();
-        if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-          setDropTargetIndex(i);
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+          targetIdx = i;
           break;
         }
       }
-    },
-    [touchDragIndex]
-  );
+      dropTargetRef.current = targetIdx;
+      setDropTargetIndex(targetIdx);
+    };
 
-  const handleTouchEnd = useCallback(() => {
-    reorderItems(dragStartIndexRef.current, dropTargetIndex);
-    setTouchDragIndex(null);
-    setDropTargetIndex(null);
-    if (draggedIdRef.current) {
-      setJustDroppedId(draggedIdRef.current);
-      draggedIdRef.current = null;
+    const handleUp = () => {
+      const fromIndex = dragDataRef.current?.startIndex;
+      const toIndex = dropTargetRef.current;
+
+      if (fromIndex != null && toIndex != null && fromIndex !== toIndex) {
+        setItems((prev) => {
+          const next = [...prev];
+          const [moved] = next.splice(fromIndex, 1);
+          next.splice(toIndex, 0, moved);
+          return next;
+        });
+      }
+
+      setJustDroppedId(activeDrag.id);
       setTimeout(() => setJustDroppedId(null), 400);
-    }
-    dragStartIndexRef.current = null;
-  }, [dropTargetIndex, reorderItems]);
+
+      setActiveDrag(null);
+      setDropTargetIndex(null);
+      dragDataRef.current = null;
+      dropTargetRef.current = null;
+      isDraggingRef.current = false;
+    };
+
+    document.addEventListener("pointermove", handleMove, { passive: false });
+    document.addEventListener("pointerup", handleUp);
+    document.addEventListener("pointercancel", handleUp);
+
+    return () => {
+      document.removeEventListener("pointermove", handleMove);
+      document.removeEventListener("pointerup", handleUp);
+      document.removeEventListener("pointercancel", handleUp);
+    };
+  }, [activeDrag]);
 
   // --- Submit / Check ---
   const handleSubmit = () => {
@@ -185,19 +188,14 @@ function DragDropGame({ chapter, onBack, onComplete }) {
         </div>
       )}
 
-      <ul
-        className="event-list"
-        ref={listRef}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
+      <ul className="event-list" ref={listRef}>
         {items.map((item, index) => {
           const isCorrect = submitted && item.order === index + 1;
           const isWrong = submitted && item.order !== index + 1;
-          const isDragging = dragIndex === index || touchDragIndex === index;
+          const isDragging = activeDrag?.index === index;
           const isJustDropped = justDroppedId === item.id;
-          const isActive = dragIndex !== null || touchDragIndex !== null;
-          const isDropTarget = isActive && !isDragging && dropTargetIndex === index;
+          const isDropTarget =
+            activeDrag && !isDragging && dropTargetIndex === index;
 
           return (
             <li
@@ -213,15 +211,10 @@ function DragDropGame({ chapter, onBack, onComplete }) {
               ]
                 .filter(Boolean)
                 .join(" ")}
-              draggable={!submitted}
-              onDragStart={(e) => handleDragStart(e, index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              onTouchStart={(e) => !submitted && handleTouchStart(e, index)}
+              onPointerDown={(e) => handlePointerDown(e, index)}
             >
               <span className="event-number">{index + 1}</span>
-              <span className="event-grip">{submitted ? "" : "⠿"}</span>
+              <span className="event-grip">{submitted ? "" : "\u2817"}</span>
               <span className="event-text">{item.text}</span>
               {submitted && isCorrect && (
                 <span className="event-icon correct-icon">&#10003;</span>
@@ -233,6 +226,23 @@ function DragDropGame({ chapter, onBack, onComplete }) {
           );
         })}
       </ul>
+
+      {/* Floating ghost that follows the pointer */}
+      {activeDrag && (
+        <div
+          className="drag-ghost"
+          ref={ghostRef}
+          style={{
+            left: activeDrag.initialX,
+            top: activeDrag.initialY,
+            width: activeDrag.width,
+          }}
+        >
+          <span className="event-number">{activeDrag.index + 1}</span>
+          <span className="event-grip">{"\u2817"}</span>
+          <span className="event-text">{activeDrag.text}</span>
+        </div>
+      )}
 
       {!submitted && (
         <div className="submit-area">
