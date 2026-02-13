@@ -16,6 +16,8 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState(null);
   const [touchDragIndex, setTouchDragIndex] = useState(null);
+  const [justDroppedId, setJustDroppedId] = useState(null);
+  const draggedIdRef = useRef(null);
   const listRef = useRef(null);
 
   // Reset when chapter changes
@@ -28,13 +30,8 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   // --- Desktop Drag and Drop (live reorder) ---
   const handleDragStart = useCallback((e, index) => {
     setDragIndex(index);
+    draggedIdRef.current = e.target.dataset.itemId;
     e.dataTransfer.effectAllowed = "move";
-    // Make the default browser ghost semi-transparent
-    if (e.target) {
-      requestAnimationFrame(() => {
-        e.target.style.opacity = "0.5";
-      });
-    }
   }, []);
 
   const handleDragOver = useCallback(
@@ -55,16 +52,27 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     setDragIndex(null);
+    if (draggedIdRef.current) {
+      setJustDroppedId(draggedIdRef.current);
+      draggedIdRef.current = null;
+      setTimeout(() => setJustDroppedId(null), 400);
+    }
   }, []);
 
-  const handleDragEnd = useCallback((e) => {
-    if (e.target) e.target.style.opacity = "";
+  const handleDragEnd = useCallback(() => {
     setDragIndex(null);
+    if (draggedIdRef.current) {
+      setJustDroppedId(draggedIdRef.current);
+      draggedIdRef.current = null;
+      setTimeout(() => setJustDroppedId(null), 400);
+    }
   }, []);
 
   // --- Touch Drag and Drop (live reorder) ---
   const handleTouchStart = useCallback((e, index) => {
     setTouchDragIndex(index);
+    const el = e.target.closest('.event-item');
+    if (el) draggedIdRef.current = el.dataset.itemId;
   }, []);
 
   const handleTouchMove = useCallback(
@@ -95,6 +103,11 @@ function DragDropGame({ chapter, onBack, onComplete }) {
 
   const handleTouchEnd = useCallback(() => {
     setTouchDragIndex(null);
+    if (draggedIdRef.current) {
+      setJustDroppedId(draggedIdRef.current);
+      draggedIdRef.current = null;
+      setTimeout(() => setJustDroppedId(null), 400);
+    }
   }, []);
 
   // --- Submit / Check ---
@@ -174,13 +187,16 @@ function DragDropGame({ chapter, onBack, onComplete }) {
           const isCorrect = submitted && item.order === index + 1;
           const isWrong = submitted && item.order !== index + 1;
           const isDragging = dragIndex === index || touchDragIndex === index;
+          const isJustDropped = justDroppedId === item.id;
 
           return (
             <li
               key={item.id}
+              data-item-id={item.id}
               className={[
                 "event-item",
                 isDragging ? "dragging" : "",
+                isJustDropped ? "just-dropped" : "",
                 isCorrect ? "correct" : "",
                 isWrong ? "wrong" : "",
               ]
