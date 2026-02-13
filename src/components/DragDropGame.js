@@ -1,6 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import "./DragDropGame.css";
 
+const LONG_PRESS_MS = 300;
+const MOVE_THRESHOLD = 5;
+
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -16,10 +19,12 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const [results, setResults] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null);
   const [justDroppedId, setJustDroppedId] = useState(null);
+  const [pressingId, setPressingId] = useState(null);
   const listRef = useRef(null);
   const ghostRef = useRef(null);
   const dragDataRef = useRef(null);
   const isDraggingRef = useRef(false);
+  const pendingRef = useRef(null);
 
   // Reset when chapter changes
   useEffect(() => {
@@ -28,36 +33,91 @@ function DragDropGame({ chapter, onBack, onComplete }) {
     setResults(null);
   }, [chapter]);
 
+  // Cancel a pending long-press
+  const cancelPending = useCallback(() => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    if (pending.cleanup) pending.cleanup();
+    setPressingId(null);
+    pendingRef.current = null;
+  }, []);
+
+  // Clean up pending on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingRef.current) {
+        clearTimeout(pendingRef.current.timer);
+        if (pendingRef.current.cleanup) pendingRef.current.cleanup();
+      }
+    };
+  }, []);
+
   const handlePointerDown = useCallback(
     (e, index) => {
-      if (submitted || isDraggingRef.current) return;
-      e.preventDefault();
-      isDraggingRef.current = true;
+      if (submitted || isDraggingRef.current || pendingRef.current) return;
+      // Don't call e.preventDefault() — let the browser scroll normally
 
       const el = e.currentTarget;
       const rect = el.getBoundingClientRect();
       const item = items[index];
+      const startX = e.clientX;
+      const startY = e.clientY;
 
-      dragDataRef.current = {
-        offsetX: e.clientX - rect.left,
-        offsetY: e.clientY - rect.top,
-        id: item.id,
+      // If the pointer moves too far before the timer fires, cancel
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (Math.sqrt(dx * dx + dy * dy) > MOVE_THRESHOLD) {
+          cancelPending();
+        }
+      };
+      const onUp = () => cancelPending();
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
+
+      const cleanup = () => {
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", onUp);
       };
 
-      setActiveDrag({
-        id: item.id,
-        text: item.text,
-        width: rect.width,
-        initialX: rect.left,
-        initialY: rect.top,
-      });
+      // After the long-press delay, activate drag mode
+      const timer = setTimeout(() => {
+        cleanup();
+        pendingRef.current = null;
+        isDraggingRef.current = true;
+
+        dragDataRef.current = {
+          offsetX: startX - rect.left,
+          offsetY: startY - rect.top,
+          id: item.id,
+        };
+
+        setPressingId(null);
+        setActiveDrag({
+          id: item.id,
+          text: item.text,
+          width: rect.width,
+          initialX: rect.left,
+          initialY: rect.top,
+        });
+      }, LONG_PRESS_MS);
+
+      pendingRef.current = { timer, cleanup };
+      setPressingId(item.id);
     },
-    [submitted, items]
+    [submitted, items, cancelPending]
   );
 
   // Attach document-level pointer listeners while dragging
   useEffect(() => {
     if (!activeDrag) return;
+
+    // Block touch-scrolling for the duration of the drag
+    const preventScroll = (e) => e.preventDefault();
 
     const handleMove = (e) => {
       e.preventDefault();
@@ -107,11 +167,13 @@ function DragDropGame({ chapter, onBack, onComplete }) {
       isDraggingRef.current = false;
     };
 
+    document.addEventListener("touchmove", preventScroll, { passive: false });
     document.addEventListener("pointermove", handleMove, { passive: false });
     document.addEventListener("pointerup", handleUp);
     document.addEventListener("pointercancel", handleUp);
 
     return () => {
+      document.removeEventListener("touchmove", preventScroll);
       document.removeEventListener("pointermove", handleMove);
       document.removeEventListener("pointerup", handleUp);
       document.removeEventListener("pointercancel", handleUp);
@@ -154,7 +216,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
 
       {!submitted && (
         <p className="instruction">
-          Drag and drop the events into the correct order.
+          Hold an event to pick it up, then drag it into the correct order.
         </p>
       )}
 
@@ -190,6 +252,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
           const isCorrect = submitted && item.order === index + 1;
           const isWrong = submitted && item.order !== index + 1;
           const isDragging = activeDrag?.id === item.id;
+          const isPressing = pressingId === item.id;
           const isJustDropped = justDroppedId === item.id;
 
           return (
@@ -198,6 +261,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
               data-item-id={item.id}
               className={[
                 "event-item",
+                isPressing ? "pressing" : "",
                 isDragging ? "dragging" : "",
                 isJustDropped ? "just-dropped" : "",
                 isCorrect ? "correct" : "",
