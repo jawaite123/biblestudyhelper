@@ -1,13 +1,14 @@
 .chapter-select {
   max-width: 800px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1.25rem 1rem;
 }
 
 .chapter-select h2 {
   text-align: center;
   margin-bottom: 0.25rem;
   color: var(--text-primary);
+  font-weight: 800;
 }
 
 .subtitle {
@@ -33,18 +34,21 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: 0.85rem;
+  font-weight: 500;
   transition: all 0.2s;
 }
 
 .filter-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-light);
 }
 
 .filter-btn.active {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .chapter-grid {
@@ -58,8 +62,10 @@
   flex-direction: column;
   gap: 0.35rem;
   padding: 1.1rem;
+  padding-left: 1rem;
   background: var(--surface);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -69,13 +75,16 @@
 
 .chapter-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-left-color: var(--accent);
+  box-shadow: 0 4px 16px var(--accent-glow);
   transform: translateY(-2px);
+  background: var(--accent-light);
 }
 
 .card-book {
   font-weight: 700;
   font-size: 1.05rem;
+  color: var(--text-primary);
 }
 
 .card-title {
@@ -86,5 +95,6 @@
 .card-count {
   font-size: 0.8rem;
   color: var(--accent);
+  font-weight: 600;
   margin-top: 0.25rem;
 }

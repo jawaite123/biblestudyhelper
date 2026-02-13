@@ -12,7 +12,7 @@
 }
 
 .back-btn {
-  background: none;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.5rem 0.85rem;
@@ -26,11 +26,13 @@
 .back-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-light);
 }
 
 .game-title h2 {
   margin: 0;
   font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .game-title p {
@@ -80,14 +82,15 @@
 }
 
 .event-item:hover:not(.dragging):not(.correct):not(.wrong) {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px var(--accent-glow);
+  border-color: var(--border);
 }
 
 .event-item.dragging {
   opacity: 0.65;
   transform: scale(1.12) rotate(3deg);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25),
-              0 8px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 20px 50px rgba(79, 70, 229, 0.3),
+              0 8px 16px rgba(79, 70, 229, 0.15);
   border-color: var(--accent);
   background: var(--accent-light);
   z-index: 10;
@@ -102,8 +105,8 @@
 @keyframes settle {
   0% {
     transform: scale(1.12);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25),
-                0 8px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 20px 50px rgba(79, 70, 229, 0.3),
+                0 8px 16px rgba(79, 70, 229, 0.15);
   }
   40% {
     transform: scale(0.95);
@@ -252,10 +255,12 @@
 .btn-primary {
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .btn-primary:hover {
   background: var(--accent-dark);
+  box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .btn-secondary {
@@ -267,6 +272,7 @@
 .btn-secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
+  background: var(--accent-light);
 }
 
 .btn-lg {
