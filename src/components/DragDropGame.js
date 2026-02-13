@@ -15,12 +15,10 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState(null);
   const [justDroppedId, setJustDroppedId] = useState(null);
   const listRef = useRef(null);
   const ghostRef = useRef(null);
   const dragDataRef = useRef(null);
-  const dropTargetRef = useRef(null);
   const isDraggingRef = useRef(false);
 
   // Reset when chapter changes
@@ -38,23 +36,21 @@ function DragDropGame({ chapter, onBack, onComplete }) {
 
       const el = e.currentTarget;
       const rect = el.getBoundingClientRect();
+      const item = items[index];
 
       dragDataRef.current = {
         offsetX: e.clientX - rect.left,
         offsetY: e.clientY - rect.top,
-        startIndex: index,
+        id: item.id,
       };
-      dropTargetRef.current = index;
 
       setActiveDrag({
-        index,
-        id: el.dataset.itemId,
-        text: items[index].text,
+        id: item.id,
+        text: item.text,
         width: rect.width,
         initialX: rect.left,
         initialY: rect.top,
       });
-      setDropTargetIndex(index);
     },
     [submitted, items]
   );
@@ -65,12 +61,16 @@ function DragDropGame({ chapter, onBack, onComplete }) {
 
     const handleMove = (e) => {
       e.preventDefault();
-      if (ghostRef.current && dragDataRef.current) {
-        ghostRef.current.style.left = `${e.clientX - dragDataRef.current.offsetX}px`;
-        ghostRef.current.style.top = `${e.clientY - dragDataRef.current.offsetY}px`;
+      const data = dragDataRef.current;
+      if (!data) return;
+
+      // Update ghost position
+      if (ghostRef.current) {
+        ghostRef.current.style.left = `${e.clientX - data.offsetX}px`;
+        ghostRef.current.style.top = `${e.clientY - data.offsetY}px`;
       }
 
-      // Determine drop target by checking midpoints of list children
+      // Determine target index from pointer Y vs list children midpoints
       const elements = listRef.current?.children;
       if (!elements) return;
 
@@ -83,30 +83,27 @@ function DragDropGame({ chapter, onBack, onComplete }) {
           break;
         }
       }
-      dropTargetRef.current = targetIdx;
-      setDropTargetIndex(targetIdx);
+
+      // Live-reorder: move the dragged item to the target slot
+      setItems((prev) => {
+        const currentIdx = prev.findIndex((item) => item.id === data.id);
+        if (currentIdx === targetIdx || currentIdx === -1) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(currentIdx, 1);
+        next.splice(targetIdx, 0, moved);
+        return next;
+      });
     };
 
     const handleUp = () => {
-      const fromIndex = dragDataRef.current?.startIndex;
-      const toIndex = dropTargetRef.current;
-
-      if (fromIndex != null && toIndex != null && fromIndex !== toIndex) {
-        setItems((prev) => {
-          const next = [...prev];
-          const [moved] = next.splice(fromIndex, 1);
-          next.splice(toIndex, 0, moved);
-          return next;
-        });
+      const data = dragDataRef.current;
+      if (data) {
+        setJustDroppedId(data.id);
+        setTimeout(() => setJustDroppedId(null), 400);
       }
 
-      setJustDroppedId(activeDrag.id);
-      setTimeout(() => setJustDroppedId(null), 400);
-
       setActiveDrag(null);
-      setDropTargetIndex(null);
       dragDataRef.current = null;
-      dropTargetRef.current = null;
       isDraggingRef.current = false;
     };
 
@@ -192,10 +189,8 @@ function DragDropGame({ chapter, onBack, onComplete }) {
         {items.map((item, index) => {
           const isCorrect = submitted && item.order === index + 1;
           const isWrong = submitted && item.order !== index + 1;
-          const isDragging = activeDrag?.index === index;
+          const isDragging = activeDrag?.id === item.id;
           const isJustDropped = justDroppedId === item.id;
-          const isDropTarget =
-            activeDrag && !isDragging && dropTargetIndex === index;
 
           return (
             <li
@@ -205,7 +200,6 @@ function DragDropGame({ chapter, onBack, onComplete }) {
                 "event-item",
                 isDragging ? "dragging" : "",
                 isJustDropped ? "just-dropped" : "",
-                isDropTarget ? "drop-target" : "",
                 isCorrect ? "correct" : "",
                 isWrong ? "wrong" : "",
               ]
@@ -238,7 +232,6 @@ function DragDropGame({ chapter, onBack, onComplete }) {
             width: activeDrag.width,
           }}
         >
-          <span className="event-number">{activeDrag.index + 1}</span>
           <span className="event-grip">{"\u2817"}</span>
           <span className="event-text">{activeDrag.text}</span>
         </div>

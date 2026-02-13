@@ -86,12 +86,15 @@
   border-color: var(--border);
 }
 
+/* Placeholder gap where the dragged item currently sits */
 .event-item.dragging {
-  opacity: 0.35;
-  border-style: dashed;
-  border-color: var(--accent);
+  border: 2px dashed var(--accent);
   background: var(--accent-light);
   cursor: grabbing;
+}
+
+.event-item.dragging > * {
+  visibility: hidden;
 }
 
 /* Floating ghost that follows the pointer freely */
@@ -110,12 +113,6 @@
               0 8px 16px rgba(79, 70, 229, 0.15);
   transform: rotate(2deg) scale(1.03);
   will-change: left, top;
-}
-
-.event-item.drop-target {
-  border-color: var(--accent);
-  background: var(--accent-light);
-  box-shadow: 0 0 0 2px var(--accent);
 }
 
 @keyframes settle {
