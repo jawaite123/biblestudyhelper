@@ -16,7 +16,6 @@ function shuffleArray(arr) {
 function DragDropGame({ chapter, onBack, onComplete }) {
   const [items, setItems] = useState(() => shuffleArray(chapter.events));
   const [submitted, setSubmitted] = useState(false);
-  const [results, setResults] = useState(null);
   const [activeDrag, setActiveDrag] = useState(null);
   const [justDroppedId, setJustDroppedId] = useState(null);
   const [pressingId, setPressingId] = useState(null);
@@ -26,11 +25,17 @@ function DragDropGame({ chapter, onBack, onComplete }) {
   const isDraggingRef = useRef(false);
   const pendingRef = useRef(null);
 
+  // Derive score live from current item positions
+  const correctCount = items.filter(
+    (item, idx) => item.order === idx + 1
+  ).length;
+  const total = items.length;
+  const score = Math.round((correctCount / total) * 100);
+
   // Reset when chapter changes
   useEffect(() => {
     setItems(shuffleArray(chapter.events));
     setSubmitted(false);
-    setResults(null);
   }, [chapter]);
 
   // Cancel a pending long-press
@@ -90,12 +95,6 @@ function DragDropGame({ chapter, onBack, onComplete }) {
         pendingRef.current = null;
         isDraggingRef.current = true;
 
-        // Clear previous results when the user starts reordering
-        if (submitted) {
-          setSubmitted(false);
-          setResults(null);
-        }
-
         dragDataRef.current = {
           offsetX: startX - rect.left,
           offsetY: startY - rect.top,
@@ -115,7 +114,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
       pendingRef.current = { timer, cleanup };
       setPressingId(item.id);
     },
-    [submitted, items, cancelPending]
+    [items, cancelPending]
   );
 
   // Attach document-level pointer listeners while dragging
@@ -188,23 +187,13 @@ function DragDropGame({ chapter, onBack, onComplete }) {
 
   // --- Submit / Check ---
   const handleSubmit = () => {
-    const correctCount = items.filter(
-      (item, idx) => item.order === idx + 1
-    ).length;
-    const total = items.length;
-    setResults({ correctCount, total });
     setSubmitted(true);
   };
 
   const handleRetry = () => {
     setItems(shuffleArray(chapter.events));
     setSubmitted(false);
-    setResults(null);
   };
-
-  const score = results
-    ? Math.round((results.correctCount / results.total) * 100)
-    : 0;
 
   return (
     <div className="drag-drop-game">
@@ -226,19 +215,19 @@ function DragDropGame({ chapter, onBack, onComplete }) {
         </p>
       )}
 
-      {submitted && results && (
+      {submitted && (
         <div className={`results-banner ${score === 100 ? "perfect" : ""}`}>
           <div className="score-display">
             <span className="score-number">{score}%</span>
             <span className="score-label">
-              {results.correctCount} of {results.total} correct
+              {correctCount} of {total} correct
             </span>
           </div>
           {score === 100 ? (
             <p className="score-msg">You got them all right!</p>
           ) : (
             <p className="score-msg">
-              Hold and drag the red items to fix them, then check again.
+              Hold and drag the red items to fix them.
             </p>
           )}
           <div className="results-actions">
