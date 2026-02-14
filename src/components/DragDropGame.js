@@ -55,7 +55,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
 
   const handlePointerDown = useCallback(
     (e, index) => {
-      if (submitted || isDraggingRef.current || pendingRef.current) return;
+      if (isDraggingRef.current || pendingRef.current) return;
       // Don't call e.preventDefault() — let the browser scroll normally
 
       const el = e.currentTarget;
@@ -89,6 +89,12 @@ function DragDropGame({ chapter, onBack, onComplete }) {
         cleanup();
         pendingRef.current = null;
         isDraggingRef.current = true;
+
+        // Clear previous results when the user starts reordering
+        if (submitted) {
+          setSubmitted(false);
+          setResults(null);
+        }
 
         dragDataRef.current = {
           offsetX: startX - rect.left,
@@ -232,13 +238,12 @@ function DragDropGame({ chapter, onBack, onComplete }) {
             <p className="score-msg">You got them all right!</p>
           ) : (
             <p className="score-msg">
-              Review the results below. Green items are correct; red items are
-              out of place.
+              Hold and drag the red items to fix them, then check again.
             </p>
           )}
           <div className="results-actions">
-            <button className="btn btn-primary" onClick={handleRetry}>
-              Try Again
+            <button className="btn btn-secondary" onClick={handleRetry}>
+              Start Over
             </button>
             <button className="btn btn-secondary" onClick={onBack}>
               Pick Another Chapter
@@ -272,7 +277,7 @@ function DragDropGame({ chapter, onBack, onComplete }) {
               onPointerDown={(e) => handlePointerDown(e, index)}
             >
               <span className="event-number">{index + 1}</span>
-              <span className="event-grip">{submitted ? "" : "\u2817"}</span>
+              <span className="event-grip">{"\u2817"}</span>
               <span className="event-text">{item.text}</span>
               {submitted && isCorrect && (
                 <span className="event-icon correct-icon">&#10003;</span>
@@ -301,13 +306,11 @@ function DragDropGame({ chapter, onBack, onComplete }) {
         </div>
       )}
 
-      {!submitted && (
-        <div className="submit-area">
-          <button className="btn btn-primary btn-lg" onClick={handleSubmit}>
-            Check My Answers
-          </button>
-        </div>
-      )}
+      <div className="submit-area">
+        <button className="btn btn-primary btn-lg" onClick={handleSubmit}>
+          {submitted ? "Check Again" : "Check My Answers"}
+        </button>
+      </div>
     </div>
   );
 }
